@@ -29,6 +29,7 @@ function Example() {
     const [roomName, setRoomName] = useState("");
     const [messages, setMessages] = useState<string[]>([]);
     const [existingRooms, setExistingRooms] = useState<Room[]>([]);
+    const [count] = useState<number>(0);
 
     useEffect(() => {
         // WebSocket을 사용하여 STOMP 클라이언트 생성
@@ -98,7 +99,7 @@ function Example() {
                 const messageObject = {
                     type: "TALK",
                     runningType: "RUN",
-                    count: 1,
+                    count: 0,
                     roomId: "67be7fb6-3040-475e-aa83-676d0922e5fe",
                     sender: client.clientId,
                     message: currentTime
@@ -119,7 +120,7 @@ function Example() {
                 const messageObject = {
                     type: "TALK",
                     runningType: "STOP",
-                    count: 1,
+                    count: 0,
                     roomId: "67be7fb6-3040-475e-aa83-676d0922e5fe",
                     sender: client.clientId,
                     message: currentTime
