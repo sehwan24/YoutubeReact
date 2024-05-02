@@ -12,6 +12,7 @@
     "@types/react": "^18.2.67",
     "@types/react-dom": "^18.2.22",
     "@types/uuid": "^9.0.8",
+    "@types/youtube": "^0.0.50",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
