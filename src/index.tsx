@@ -11,8 +11,13 @@ interface Room {
     roomName: string;
 }
 
+interface TimeLine {
+    videoId: string;
+    timeLine: string;
+}
+
 interface ChatMessage {
-    type: 'ENTER' | 'TALK' | 'VIDEO',
+    type: 'ENTER' | 'TALK' | 'VIDEO' | 'URL',
     runningType: 'RUN' | 'STOP' | 'NO',
     roomId : string,
     sender : string,
@@ -26,6 +31,7 @@ function Example() {
     const [roomName, setRoomName] = useState("");
     const [messages, setMessages] = useState<string[]>([]);
     const [existingRooms, setExistingRooms] = useState<Room[]>([]);
+    const [existingTimeLines, setExistingTimeLines] = useState<TimeLine[]>([]);
     const [playerReady, setPlayerReady] = useState(false);  // 플레이어 준비 상태
     const [videoId, setVideoId] = useState('2g811Eo7K8U');
     const [inputValue, setInputValue] = useState('');
@@ -108,7 +114,7 @@ function Example() {
             }
 
         }
-        if (body.type === 'TALK' && body.sender !== client.clientId) {
+        if (body.type === 'URL' && body.sender !== client.clientId) {
             if (body.runningType === "NO") {
                 setVideoId(body.message);
                 sessionStorage.setItem('currentState', "STOP");
@@ -136,6 +142,28 @@ function Example() {
             // STOMP 클라이언트를 통해 메시지 전송
             stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
             stompClient.subscribe(`/sub/chatting/room/${roomId}`, handleStompMessage);
+        }
+    };
+
+    const watchTimeLine = (timeLine: string) => {  //타임라인으로 이동
+        console.log(timeLine);
+        console.log('goto timeline');
+
+        player.seekTo(timeLine, 1);
+        sessionStorage.setItem('currentState', "RUN");
+
+        if (stompClient) {
+            const messageObject = {
+                type: "VIDEO",
+                runningType: "RUN",
+                roomId: sessionStorage.getItem("roomId"),
+                sender: client.clientId,
+                message: timeLine
+            };
+            console.log(client.clientId);
+            console.log("run2")
+            // STOMP 클라이언트를 통해 메시지 전송
+            stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
         }
     };
 
@@ -202,6 +230,46 @@ function Example() {
         event.target.pauseVideo();
     };
 
+    const handleButtonClick4 = () => {
+        const url = `http://localhost:8080/timeline/${videoId}`;
+        fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP 오류 ' + response.status);
+                }
+                return response.json();
+            })
+            .then((data: TimeLine[]) => {
+                setExistingTimeLines(data);
+            })
+            .catch(error => {
+                console.error('에러 발생:', error);
+            });
+    }
+
+    const handleButtonClick3 = () => {
+        fetch('http://localhost:8080/timeline/new', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ videoId: videoId , timeLine: player.getCurrentTime()})
+        })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('HTTP Error ' + response.status);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('타임라인 전송 완료:', data);
+            })
+            .catch(error => {
+                console.error('에러 발생:', error);
+            });
+
+    };
+
 
 
     const handleButtonClick2 = () => {
@@ -256,20 +324,20 @@ function Example() {
 
     const updateVideoId = () => {
         //player.loadVideoByUrl(inputValue);
-        const videoIdFromURI =
+        const videoIdFromURL =
             inputValue.split('?v=').length > 1 ? inputValue.split('?v=')[1].split('&')[0] : false;
-        if (videoIdFromURI && playerReady) {
-            setVideoId(videoIdFromURI);
+        if (videoIdFromURL && playerReady) {
+            setVideoId(videoIdFromURL);
         }
 
-        if(videoIdFromURI) {
+        if(videoIdFromURL) {
             if (stompClient) {
                 const messageObject = {
-                    type: "TALK",
+                    type: "URL",
                     runningType: "NO",
                     roomId: sessionStorage.getItem("roomId"),
                     sender: client.clientId,
-                    message: videoIdFromURI
+                    message: videoIdFromURL
                 };
                 // STOMP 클라이언트를 통해 메시지 전송
                 stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
@@ -302,7 +370,8 @@ function Example() {
                 placeholder="YouTube 비디오 링크를 입력하세요"
                 style={{ width: '30%', marginRight: '10px' }}
             />
-            <button onClick={updateVideoId}>시청하기</button>
+            <button
+                onClick={updateVideoId}>시청하기 </button>
 
             <div>
                 <input
@@ -320,11 +389,29 @@ function Example() {
             </div>
 
             <div>
+                <button onClick={handleButtonClick3}>타임라인 추가</button>
+                <button
+                    style={{ marginRight: '10px' }}
+                    onClick={handleButtonClick4}>타임라인 조회</button>
+            </div>
+
+            <div>
                 <h2>현재 있는 방</h2>
                 <ul>
                     {existingRooms.map((room, index) => (
                         <li key={index}>
                             <button onClick={() => joinRoom(room.roomId)}> 입장하기 {room.roomName}</button>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+
+            <div>
+                <h2>타임 라인</h2>
+                <ul>
+                    {existingTimeLines.map((timeline, index) => (
+                        <li key={index}>
+                            <button onClick={() => watchTimeLine(timeline.timeLine)}> 시청하기 {timeline.timeLine}</button>
                         </li>
                     ))}
                 </ul>
