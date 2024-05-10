@@ -11,10 +11,6 @@ interface Room {
     roomName: string;
 }
 
-interface TimeLine {
-    videoId: string;
-    timeLine: string;
-}
 
 interface ChatMessage {
     type: 'ENTER' | 'TALK' | 'VIDEO' | 'URL',
@@ -31,7 +27,7 @@ function Example() {
     const [roomName, setRoomName] = useState("");
     const [messages, setMessages] = useState<string[]>([]);
     const [existingRooms, setExistingRooms] = useState<Room[]>([]);
-    const [existingTimeLines, setExistingTimeLines] = useState<TimeLine[]>([]);
+    const [existingTimeLines, setExistingTimeLines] = useState<string[]>([]);
     const [playerReady, setPlayerReady] = useState(false);  // 플레이어 준비 상태
     const [videoId, setVideoId] = useState('2g811Eo7K8U');
     const [inputValue, setInputValue] = useState('');
@@ -150,6 +146,9 @@ function Example() {
         console.log('goto timeline');
 
         player.seekTo(timeLine, 1);
+        if (sessionStorage.getItem('currentState') === "STOP") {
+            player.playVideo();
+        }
         sessionStorage.setItem('currentState', "RUN");
 
         if (stompClient) {
@@ -239,7 +238,7 @@ function Example() {
                 }
                 return response.json();
             })
-            .then((data: TimeLine[]) => {
+            .then((data: string[]) => {
                 setExistingTimeLines(data);
             })
             .catch(error => {
@@ -411,7 +410,7 @@ function Example() {
                 <ul>
                     {existingTimeLines.map((timeline, index) => (
                         <li key={index}>
-                            <button onClick={() => watchTimeLine(timeline.timeLine)}> 시청하기 {timeline.timeLine}</button>
+                            <button onClick={() => watchTimeLine(timeline)}> 시청하기 {timeline}</button>
                         </li>
                     ))}
                 </ul>
