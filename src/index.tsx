@@ -1,7 +1,7 @@
 import React, {useState, useEffect, useCallback} from 'react';
 import ReactDOM from 'react-dom';
 import YouTube, {YouTubeEvent, YouTubeProps} from 'react-youtube';
-import { Client, Stomp } from '@stomp/stompjs'; // STOMP 클라이언트 및 WebSocket 가져오기
+import { Client, Stomp, StompSubscription} from '@stomp/stompjs'; // STOMP 클라이언트 및 WebSocket 가져오기
 import { Message } from '@stomp/stompjs';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -20,17 +20,55 @@ interface ChatMessage {
     message: string;
 }
 
+interface YouTubeVideoDetails {
+    snippet: {
+        title: string;
+    };
+    statistics: {
+        viewCount: number;
+        likeCount: number;
+    };
+}
+
+const YOUTUBE_API_KEY = 'AIzaSyD7tJLNY_NhSRUzWxAZMRFnd8pLjy-R2hU';
+
+const fetchVideoDetails = async (videoId: string): Promise<YouTubeVideoDetails> => {
+    const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,statistics&key=${YOUTUBE_API_KEY}`;
+    const response = await fetch(url);
+    const data = await response.json();
+    return data.items[0] as YouTubeVideoDetails;
+};
+
 function Example() {
 
     const [player, setPlayer] = useState<any>(null);
     const [stompClient, setStompClient] = useState<Client | null>(null); // STOMP 클라이언트 상태 추가
     const [roomName, setRoomName] = useState("");
-    const [messages, setMessages] = useState<string[]>([]);
+    const [subscription, setSubscription] = useState<StompSubscription | null>(null);
     const [existingRooms, setExistingRooms] = useState<Room[]>([]);
     const [existingTimeLines, setExistingTimeLines] = useState<string[]>([]);
     const [playerReady, setPlayerReady] = useState(false);  // 플레이어 준비 상태
     const [videoId, setVideoId] = useState('2g811Eo7K8U');
     const [inputValue, setInputValue] = useState('');
+    const [videoTitle, setVideoTitle] = useState('');
+    const [viewCount, setViewCount] = useState(0);
+    const [likeCount, setLikeCount] = useState(0);
+    const [chatInput, setChatInput] = useState('');
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+
+
+    useEffect(() => {
+        if (videoId) {
+            fetchVideoDetails(videoId).then((details) => {
+                setVideoTitle(details.snippet.title);
+                setViewCount(details.statistics.viewCount);
+                setLikeCount(details.statistics.likeCount);
+            }).catch(error => {
+                console.error('Error fetching video details:', error);
+            });
+        }
+    }, [videoId]);
 
 
     useEffect(() => {
@@ -59,6 +97,11 @@ function Example() {
 
     useEffect(() => {
         console.log('use Effect !!!!!!!!!!!!!!!!!!');
+        let userId = sessionStorage.getItem("userId");
+        if (!userId) {
+            userId = uuidv4(); // Generate a new UUID if one doesn't exist
+            sessionStorage.setItem("userId", userId); // Store the new UUID in session storage
+        }
         sessionStorage.setItem('currentState', 'STOP');
         // WebSocket을 사용하여 STOMP 클라이언트 생성
         const client = Stomp.client('ws://localhost:8080/ws');
@@ -76,12 +119,14 @@ function Example() {
         };
     }, []);
 
+    /*
     // 클라이언트 객체 생성
     const client = {
         clientId: uuidv4(), // 고유한 클라이언트 식별자 생성
         name: "ClientName", // 클라이언트 이름 등
         // 기타 필요한 클라이언트 정보
-    };
+    };*/
+
 
 
 
@@ -90,13 +135,13 @@ function Example() {
     // STOMP 클라이언트가 연결되면 실행될 함수
     const handleStompMessage = (message: Message) => {
         const body: ChatMessage = JSON.parse(message.body);
-        if (player) {
+        /*if (player) {
             player.seekTo(body.message, true);
         } else {
             console.error('YouTube 플레이어가 초기화되지 않았습니다');
-        }
+        }*/
         console.log('1');
-        if (body.type === 'VIDEO' && body.sender !== client.clientId) {
+        if (body.type === 'VIDEO' && body.sender !== sessionStorage.getItem("userId")) {
             console.log('2');
             player.seekTo(body.message, 1);
             if (body.runningType === "STOP" && sessionStorage.getItem("currentState") === "RUN") {
@@ -110,10 +155,17 @@ function Example() {
             }
 
         }
-        if (body.type === 'URL' && body.sender !== client.clientId) {
+        if (body.type === 'URL' && body.sender !== sessionStorage.getItem("userId")) {
             if (body.runningType === "NO") {
                 setVideoId(body.message);
                 sessionStorage.setItem('currentState', "STOP");
+            }
+        }
+        if (body.type === 'TALK' && body.sender !== sessionStorage.getItem("userId")) {
+            if (body.runningType === 'NO') {
+                console.log(sessionStorage.getItem("userId"));
+                console.log(body.sender);
+                setChatMessages(prevMessages => [...prevMessages, body]);
             }
         }
     };
@@ -124,20 +176,26 @@ function Example() {
 
         sessionStorage.setItem('roomId', roomId);
 
+        if (subscription) {
+            subscription.unsubscribe();
+            console.log('Unsubscribed from previous room');
+        }
+
         if (stompClient) {
             // 채팅방에 입장할 때 해당 채팅방의 메시지를 구독
             const messageObject = {
                 type: "ENTER",
                 runningType: "NO",
                 roomId: sessionStorage.getItem("roomId"),
-                sender: client.clientId,
+                sender: sessionStorage.getItem("userId"),
                 message: "entered room"
             };
-            console.log(client.clientId);
+            console.log(sessionStorage.getItem("userId"));
             console.log("run2")
             // STOMP 클라이언트를 통해 메시지 전송
             stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
-            stompClient.subscribe(`/sub/chatting/room/${roomId}`, handleStompMessage);
+            const newSubscription = stompClient.subscribe(`/sub/chatting/room/${roomId}`, handleStompMessage);
+            setSubscription(newSubscription);
         }
     };
 
@@ -156,10 +214,10 @@ function Example() {
                 type: "VIDEO",
                 runningType: "RUN",
                 roomId: sessionStorage.getItem("roomId"),
-                sender: client.clientId,
+                sender: sessionStorage.getItem("userId"),
                 message: timeLine
             };
-            console.log(client.clientId);
+            console.log(sessionStorage.getItem("userId"));
             console.log("run2")
             // STOMP 클라이언트를 통해 메시지 전송
             stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
@@ -184,10 +242,10 @@ function Example() {
                     type: "VIDEO",
                     runningType: "RUN",
                     roomId: sessionStorage.getItem("roomId"),
-                    sender: client.clientId,
+                    sender: sessionStorage.getItem("userId"),
                     message: currentTime
                 };
-                console.log(client.clientId);
+                console.log(sessionStorage.getItem("userId"));
                 console.log("run2")
                 // STOMP 클라이언트를 통해 메시지 전송
                 stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
@@ -205,10 +263,10 @@ function Example() {
                     type: "VIDEO",
                     runningType: "STOP",
                     roomId: sessionStorage.getItem("roomId"),
-                    sender: client.clientId,
+                    sender: sessionStorage.getItem("userId"),
                     message: currentTime
                 };
-                console.log(client.clientId);
+                console.log(sessionStorage.getItem("userId"));
                 console.log("stop2")
                 // STOMP 클라이언트를 통해 메시지 전송
                 stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
@@ -321,6 +379,26 @@ function Example() {
         setInputValue(event.target.value);
     }
 
+    const handleChatInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setChatInput(event.target.value);
+    };
+
+    const sendMessage = () => {
+        if (stompClient && chatInput.trim() !== '') {
+            const messageObject: ChatMessage = {
+                type: "TALK",
+                runningType: "NO",
+                roomId: sessionStorage.getItem("roomId")!,
+                sender: sessionStorage.getItem("userId")!,
+                message: chatInput
+            };
+            stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
+            setChatMessages(prevMessages => [...prevMessages, messageObject]);
+            setChatInput('');
+        }
+    };
+
+
     const updateVideoId = () => {
         //player.loadVideoByUrl(inputValue);
         const videoIdFromURL =
@@ -335,7 +413,7 @@ function Example() {
                     type: "URL",
                     runningType: "NO",
                     roomId: sessionStorage.getItem("roomId"),
-                    sender: client.clientId,
+                    sender: sessionStorage.getItem("userId"),
                     message: videoIdFromURL
                 };
                 // STOMP 클라이언트를 통해 메시지 전송
@@ -371,6 +449,12 @@ function Example() {
             />
             <button
                 onClick={updateVideoId}>시청하기 </button>
+
+            <div>
+                <h1>{videoTitle}</h1>
+                <p>Views: {viewCount}</p>
+                <p>Likes: {likeCount}</p>
+            </div>
 
             <div>
                 <input
@@ -419,10 +503,18 @@ function Example() {
             <div>
                 <h2>채팅 메시지</h2>
                 <ul>
-                    {messages.map((message, index) => (
-                        <li key={index}>{message}</li>
+                    {chatMessages.map((message, index) => (
+                        <li key={index}><strong>{message.sender}: </strong>{message.message}</li>
                     ))}
                 </ul>
+                <input
+                    type="text"
+                    value={chatInput}
+                    onChange={handleChatInputChange}
+                    placeholder="메시지를 입력하세요"
+                    style={{ width: '50%', marginRight: '10px' }}
+                />
+                <button onClick={sendMessage}>전송</button>
             </div>
         </div>
     );
