@@ -147,10 +147,14 @@ function Example() {
             if (body.runningType === "STOP" && sessionStorage.getItem("currentState") === "RUN") {
                 console.log('3')
                 player.pauseVideo();
+                const displayMessage = `${body.sender}님이 동영상을 ${body.message}초에 정지했습니다.`;
+                setChatMessages(prevMessages => [...prevMessages, {...body, message: displayMessage}]);
                 sessionStorage.setItem('currentState', "STOP");
             } else if (body.runningType === "RUN" && sessionStorage.getItem("currentState") === "STOP") {
                 console.log('4');
                 player.playVideo();
+                const displayMessage = `${body.sender}님이 동영상을 ${body.message}초에 재생했습니다.`;
+                setChatMessages(prevMessages => [...prevMessages, {...body, message: displayMessage}]);
                 sessionStorage.setItem('currentState', "RUN");
             }
 
@@ -158,6 +162,8 @@ function Example() {
         if (body.type === 'URL' && body.sender !== sessionStorage.getItem("userId")) {
             if (body.runningType === "NO") {
                 setVideoId(body.message);
+                const displayMessage = `${body.sender}님이 동영상을 변경했습니다.`;
+                setChatMessages(prevMessages => [...prevMessages, {...body, message: displayMessage}]);
                 sessionStorage.setItem('currentState', "STOP");
             }
         }
