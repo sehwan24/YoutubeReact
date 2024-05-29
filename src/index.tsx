@@ -1,4 +1,4 @@
-import React, {useState, useEffect, useCallback} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import ReactDOM from 'react-dom';
 import YouTube, {YouTubeEvent, YouTubeProps} from 'react-youtube';
 import { Client, Stomp, StompSubscription} from '@stomp/stompjs'; // STOMP 클라이언트 및 WebSocket 가져오기
@@ -56,6 +56,7 @@ function Example() {
     const [viewCount, setViewCount] = useState(0);
     const [likeCount, setLikeCount] = useState(0);
     const [chatInput, setChatInput] = useState('');
+    const messagesEndRef = useRef<HTMLDivElement>(null);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
 
@@ -120,6 +121,11 @@ function Example() {
             }
         };
     }, []);
+
+
+    useEffect(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, [chatMessages]);
 
     /*
     // 클라이언트 객체 생성
@@ -526,6 +532,7 @@ function Example() {
                             <li key={index}><strong>{message.sender}: </strong>{message.message}</li>
                         ))}
                     </ul>
+                    <div ref={messagesEndRef} />
                 </div>
                 <div className="chat-input">
                     <input
