@@ -4,6 +4,8 @@ import YouTube, {YouTubeEvent, YouTubeProps} from 'react-youtube';
 import { Client, Stomp, StompSubscription} from '@stomp/stompjs'; // STOMP 클라이언트 및 WebSocket 가져오기
 import { Message } from '@stomp/stompjs';
 import { v4 as uuidv4 } from 'uuid';
+import './index.css';
+
 
 
 interface Room {
@@ -227,6 +229,8 @@ function Example() {
             console.log("run2")
             // STOMP 클라이언트를 통해 메시지 전송
             stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
+            /*const displayMessage = `${sessionStorage.getItem("userId")}님이 동영상을 ${timeLine}초에 재생했습니다.`;
+            setChatMessages(prevMessages => [...prevMessages, {...messageObject, message: displayMessage}]);*/
         }
     };
 
@@ -255,6 +259,8 @@ function Example() {
                 console.log("run2")
                 // STOMP 클라이언트를 통해 메시지 전송
                 stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
+                /*const displayMessage = `${sessionStorage.getItem("userId")}님이 동영상을 ${currentTime}초에 재생했습니다.`;
+                setChatMessages(prevMessages => [...prevMessages, {...messageObject, message: displayMessage}]);*/
             }
 
         } else if (event.data === 2 && sessionStorage.getItem('currentState') !== "STOP") {
@@ -262,6 +268,7 @@ function Example() {
             // 영상이 일시 정지되었을 때
             const currentTime = player.getCurrentTime(); // 현재 재생 위치를 가져옴 (초 단위)
             console.log('일시 정지된 시간:', currentTime);
+
 
             // 서버로 현재 재생 위치를 보냄 (fetch 등의 방법을 사용할 수 있음)
             if (stompClient) {
@@ -276,6 +283,8 @@ function Example() {
                 console.log("stop2")
                 // STOMP 클라이언트를 통해 메시지 전송
                 stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
+                /*const displayMessage = `${sessionStorage.getItem("userId")}님이 동영상을 ${currentTime}초에 정지했습니다.`;
+                setChatMessages(prevMessages => [...prevMessages, {...messageObject, message: displayMessage}]);*/
             }
         }
     };
@@ -424,103 +433,109 @@ function Example() {
                 };
                 // STOMP 클라이언트를 통해 메시지 전송
                 stompClient.publish({ destination: '/pub/chatting/message', body: JSON.stringify(messageObject) });
+                /*const displayMessage = `${sessionStorage.getItem("userId")}님이 동영상을 변경했습니다.`;
+                setChatMessages(prevMessages => [...prevMessages, {...messageObject, message: displayMessage}]);*/
             }
         }
     };
 
 
-    const opts: YouTubeProps['opts'] = {
-        height: '390',
-        width: '640',
+    /*const opts: YouTubeProps['opts'] = {
+        height: '100%',
+        width: '100%',
         playerVars: {
             autoplay: 1,
             origin: window.location.origin,
         },
-    };
+    };*/
 
     return (
-        <div>
-            <YouTube
-                videoId={videoId}
-                opts={opts}
-                onReady={onPlayerReady}
-                onStateChange={onPlayerStateChange}
-            />
-            <input
-                type="text"
-                value={inputValue}
-                onChange={handleInputChange}
-                placeholder="YouTube 비디오 링크를 입력하세요"
-                style={{ width: '30%', marginRight: '10px' }}
-            />
-            <button
-                onClick={updateVideoId}>시청하기 </button>
-
-            <div>
-                <h1>{videoTitle}</h1>
-                <p>Views: {viewCount}</p>
-                <p>Likes: {likeCount}</p>
+        <div id="container">
+            <div id="video-section">
+                <div id="video-container">
+                    <YouTube
+                        videoId={videoId}
+                        className="youtube-video"
+                        opts={{
+                            height: '100%',
+                            width: '100%',
+                            playerVars: {
+                                autoplay: 1,
+                                origin: window.location.origin,
+                            }
+                        }}
+                        onReady={onPlayerReady}
+                        onStateChange={onPlayerStateChange}
+                    />
+                </div>
+                <div className="input-group">
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={handleInputChange}
+                        placeholder="YouTube 비디오 링크를 입력하세요"
+                    />
+                    <button onClick={updateVideoId}>시청하기</button>
+                </div>
+                <div>
+                    <h2>{videoTitle}</h2>
+                    <p>Views: <span>{viewCount}</span></p>
+                    <p>Likes: <span>{likeCount}</span></p>
+                </div>
             </div>
-
-            <div>
-                <input
-                    type="text"
-                    value={roomName}
-                    onChange={handleRoomNameChange}
-                    placeholder="방 이름을 입력하세요"
-                    style={{ width: '30%', marginRight: '10px' }}
-                />
-                <button
-                    style={{ marginRight: '10px' }}
-                    onClick={handleButtonClick}>방 만들기 </button>
-
-                <button onClick={handleButtonClick2}>방 목록 조회</button>
-            </div>
-
-            <div>
-                <button onClick={handleButtonClick3}>타임라인 추가</button>
-                <button
-                    style={{ marginRight: '10px' }}
-                    onClick={handleButtonClick4}>타임라인 조회</button>
-            </div>
-
-            <div>
-                <h2>현재 있는 방</h2>
-                <ul>
-                    {existingRooms.map((room, index) => (
-                        <li key={index}>
-                            <button onClick={() => joinRoom(room.roomId)}> 입장하기 {room.roomName}</button>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-
-            <div>
-                <h2>타임 라인</h2>
-                <ul>
-                    {existingTimeLines.map((timeline, index) => (
-                        <li key={index}>
-                            <button onClick={() => watchTimeLine(timeline)}> 시청하기 {timeline}</button>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-
-            <div>
-                <h2>채팅 메시지</h2>
-                <ul>
-                    {chatMessages.map((message, index) => (
-                        <li key={index}><strong>{message.sender}: </strong>{message.message}</li>
-                    ))}
-                </ul>
-                <input
-                    type="text"
-                    value={chatInput}
-                    onChange={handleChatInputChange}
-                    placeholder="메시지를 입력하세요"
-                    style={{ width: '50%', marginRight: '10px' }}
-                />
-                <button onClick={sendMessage}>전송</button>
+            <div id="chat-section">
+                <div className="input-group">
+                    <input
+                        type="text"
+                        value={roomName}
+                        onChange={handleRoomNameChange}
+                        placeholder="방 이름을 입력하세요"
+                    />
+                    <div className="button-group">
+                        <button onClick={handleButtonClick}>방 만들기 </button>
+                        <button onClick={handleButtonClick2}>방 목록 조회</button>
+                    </div>
+                </div>
+                <h3>현재 있는 방</h3>
+                <div className="room-list">
+                    <ul>
+                        {existingRooms.map((room, index) => (
+                            <li key={index}>
+                                <button onClick={() => joinRoom(room.roomId)}> 입장하기 {room.roomName}</button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                <h3>타임 라인</h3>
+                <div className="input-group">
+                    <button onClick={handleButtonClick3}>타임라인 추가</button>
+                    <button onClick={handleButtonClick4}>타임라인 조회</button>
+                </div>
+                <div className="timeline">
+                    <ul>
+                        {existingTimeLines.map((timeline, index) => (
+                            <li key={index}>
+                                <button onClick={() => watchTimeLine(timeline)}> 시청하기 {timeline}</button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                <div className="chat-messages">
+                    <ul>
+                        {chatMessages.map((message, index) => (
+                            <li key={index}><strong>{message.sender}: </strong>{message.message}</li>
+                        ))}
+                    </ul>
+                </div>
+                <div className="chat-input">
+                    <input
+                        type="text"
+                        value={chatInput}
+                        onChange={handleChatInputChange}
+                        placeholder="메시지를 입력하세요"
+                    />
+                    <button onClick={sendMessage}>전송</button>
+                </div>
             </div>
         </div>
     );
