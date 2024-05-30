@@ -32,7 +32,7 @@ interface YouTubeVideoDetails {
     };
 }
 
-const YOUTUBE_API_KEY = 'AIzaSyD7tJLNY_NhSRUzWxAZMRFnd8pLjy-R2hU';
+const YOUTUBE_API_KEY = '';
 
 const fetchVideoDetails = async (videoId: string): Promise<YouTubeVideoDetails> => {
     const url = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&part=snippet,statistics&key=${YOUTUBE_API_KEY}`;
